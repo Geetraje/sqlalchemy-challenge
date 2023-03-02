@@ -38,6 +38,7 @@ def welcome():
         f"/api/v1.0/<start><br/>"
         f"/api/v1.0/<start>/<end>" )
 
+#Precipitation route
 @app.route("/api/v1.0/precipitation")
 def precipitation():
     # Create our session (link) from Python to the DB
@@ -58,21 +59,23 @@ def precipitation():
         precipitation.append(precipitation_dict)   
     return jsonify(precipitation)
    
-    
+#Station names route    
 @app.route("/api/v1.0/stations")
 def stations():
     # Create our session (link) from Python to the DB
     session = Session(engine)    
 
     #Query the list of station names
-    results = session.query(Station.station).all()
+    results = session.query(Station.station,Station.name).all()
     
     session.close()
-    all_names = list(np.ravel(results))
-    
+    all_names = []
+    for station, name in results:
+        name_dict = {station:name}
+        all_names.append(name_dict)
     return jsonify(all_names)
 
-
+#tobs route
 @app.route("/api/v1.0/tobs")
 def tobs():
     # Create our session (link) from Python to the DB
@@ -94,36 +97,61 @@ def tobs():
         temperature.append(temperature_dict)   
     return jsonify(temperature)
 
-
+#Start Date Route
 @app.route("/api/v1.0/<start>")
-def():
-    #start_date = request.args.get('start')
-     
-    # Create session (link) from Python to the DB
-    session = Session(engine)  
+def temp(start=None): 
+        
 
-   
+    # Create session (link) from Python to the DB
+    session = Session(engine) 
     
     sel = [Measurement.station,func.min(Measurement.tobs),
            func.avg(Measurement.tobs),
            func.max(Measurement.tobs)]
-    start_date = dt.date(2015,5,10)    
+    start_date = dt.datetime.strptime(start,"%m%d%Y")
+    
     result = session.query(*sel).\
              filter(Measurement.date >= start_date).\
              group_by(Measurement.station).all()
 
     session.close()
-    
+                 
     df= pd.DataFrame(result,columns=['STATION','TMIN','TAVG','TMAX'])
     analyse = df.values.tolist()
-    analyse_dict = df.to_dict()
-   
-        
+    analyse_dict = df.to_dict()    
     return jsonify(analyse)
+
+
+
+#Start and End date Route
+@app.route("/api/v1.0/<start>/<end>")
+def temps(start=None,end=None): 
+         
+    # Create session (link) from Python to the DB
+    session = Session(engine) 
+           
+    start_date = dt.datetime.strptime(start , "%m%d%Y")       
+    end_date = dt.datetime.strptime(end, "%m%d%Y")
+
+    sel = [Measurement.station,func.min(Measurement.tobs),
+           func.avg(Measurement.tobs),
+           func.max(Measurement.tobs)]
+        
+    result = session.query(*sel).\
+             filter(Measurement.date >= start_date).\
+             filter(Measurement.date <= end_date).\
+             group_by(Measurement.station).all()
+
+    session.close()
+
+    df= pd.DataFrame(result,columns=['STATION','TMIN','TAVG','TMAX'])
+    analyse = df.values.tolist()
+    analyse_dict = df.to_dict()      
+    return jsonify(analyse)   
+
 
 if __name__ == '__main__':
     app.run(debug=True)
-
 
 
 
